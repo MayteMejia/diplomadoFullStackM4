@@ -138,9 +138,23 @@ async function getTasks(req, res, next) {
 }
 
 async function getUserListPagination(req, res, next) {
-  const { page, limit, search, orderBy, orderDir } = req.query;
+  const { 
+    page = 1,
+    limit = 10, 
+    search = '', 
+    orderBy = 'id', 
+    orderDir = 'DESC'
+  } = req.query;
 
   try {
+    const validLimit = [5, 10, 15, 20];
+    const validOrderBy = ['id', 'username', 'status'];
+    const validOrderDir = ['ASC', 'DESC'];
+
+    const safeLimit = validLimit.includes(limit) ? Number(limit) : 10;
+    const safeOrderBy = validOrderBy.includes(orderBy) ? orderBy : 'id';
+    const safeOrderDir = validOrderDir.includes(orderDir?.toUpperCase()) ? orderDir.toUpperCase() : 'DESC';
+
     const offset = (page - 1) * limit;
     const whereCondition = search
       ? {
@@ -153,14 +167,16 @@ async function getUserListPagination(req, res, next) {
     const { count, rows } = await User.findAndCountAll({
       attributes: ['id', 'username', 'status'],
       offset: Number(offset),
-      limit: Number(limit),
+      limit: Number(safeLimit),
       where: whereCondition,
-      order: [[orderBy, orderDir]],
+      order: [[safeOrderBy, safeOrderDir]],
     });
 
+    const totalUsers = await User.count();
+
     const data = {
-      total: count,
-      page: Math.ceil(count / limit),
+      total: totalUsers,
+      page: Math.ceil(count / safeLimit),
       pages: Number(page),
       data: rows
     };
